@@ -73,12 +73,6 @@ The normalized matrix shows approximately 1% of open-mouth instances classified 
 
 No confusion between the three gesture classes was observed in the matrix. Background false positives were assigned to Left. These results indicate strong test-set performance, but do not imply error-free detection in every situation.
 
-### Baseline Comparison
-
-The initial proof of concept demonstrated mouth-controlled interaction. The final game extends that concept with real-time hand tracking, three game modes and speech interaction. A separate quantitative baseline evaluation is not documented in the supplied notebooks, so no numerical improvement over a baseline is claimed.
-
-**TODO:** Add baseline metrics if available, or confirm that no separate quantitative baseline was recorded.
-
 ## How to Run
 
 1. Download or clone the [GitHub repository](https://github.com/FatemaButaher/Fruity-Monster).
