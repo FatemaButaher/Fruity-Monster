@@ -1,143 +1,111 @@
-# Fruity Monster
-**An AI-powered educational game that makes learning fun and interactive.**
+# Fruity Monster 
 
-## Project Overview
+Fruity Monster is an AI-powered educational game that helps children learn fruit names, colors, and English vocabulary through interactive play.
 
-Fruity Monster is a Python-based educational game designed to help children recognize fruits, learn colors, practice English vocabulary, and distinguish edible fruits from non-food objects. It combines computer vision, speech recognition, and interactive gameplay to offer an alternative to repetitive learning activities.
+## Problem and Motivation
+
+Traditional learning activities can be repetitive. Fruity Monster aims to make learning more engaging through movement, voice interaction, immediate feedback, and rewards.
 
 ## Game Modes
 
-| Game | Description |
-| --- | --- |
-| Eat or Don't Eat | Control a monster using hand gestures and mouth movements. Collect fruits, avoid non-food objects and pits, and progress through five levels, including a boss level. |
-| Break the Fruit | Identify the color and name of each fruit verbally. A correct color answer cracks the fruit, and a correct name answer breaks it. The game tracks correct answers, wrong attempts, skipped questions, and completion time. |
-| Say the Fruit | Listen to a fruit name and repeat it using the microphone. Receive feedback and earn points for correctly recognized words. |
+- **Eat or Don't Eat:** Control a monster with hand gestures and mouth movements, collect fruits, and avoid non-food items across five levels.
+- **Break the Fruit:** Say the color and name of a fruit to break it and continue. The game tracks correct answers and completion time.
+- **Say the Fruit:** Listen to fruit names, repeat them, and receive feedback.
 
-## Key Features
+The game includes four selectable characters and ten fruits.
 
-- Four selectable characters: Purple, Green, Orange, and Pink.
-- Ten fruits and seven non-food objects.
-- Five platformer levels with different environments, floating platforms, and a final boss.
-- Real-time hand and mouth tracking using a shared webcam.
-- English speech recognition and text-to-speech.
-- Scores, hearts, stars, animated feedback, sound effects, and saved level progress.
-- Retry and skip options in speech-based activities. Skipping does not award points or trigger fruit-breaking effects.
-- Responsive game window with fullscreen support.
+## Datasets
 
-## Data Science and AI
+Both object-detection datasets were obtained through Roboflow.
 
-| Component | Technology | Purpose |
-| --- | --- | --- |
-| Mouth detection | Ultralytics YOLO | Detect open and closed mouth states from webcam frames. |
-| Hand tracking | MediaPipe Hand Landmarker | Extract hand landmarks and map index-finger direction to movement and jumping. |
-| Image processing | OpenCV, NumPy | Capture and preprocess webcam frames for inference. |
-| Speech recognition | SpeechRecognition, Google speech recognition | Convert spoken English answers into text and compare them with expected words. |
-| Text-to-speech | pyttsx3 | Read fruit names aloud in Say the Fruit. |
-| Game development | Arcade, Pillow | Render characters, environments, animations, and the game interface. |
+| Dataset | Training | Validation | Test | Total |
+|---|---:|---:|---:|---:|
+| Mouth (version 1) | 3,042 | 290 | 144 | 3,476 |
+| Hand (version 2) | 562 | 160 | 79 | 801 |
 
-### AI Workflow
+- Mouth classes: open and close. [Dataset source](https://universe.roboflow.com/open-mouth/open-mouth)
+- Hand classes: left, right and up. [Roboflow project](https://app.roboflow.com/fatima-laloa/hand-point/train) (may require access permission).
 
-```mermaid
-flowchart TD
-    A[Webcam] --> B[OpenCV frame capture]
-    B --> C[YOLO mouth detection]
-    B --> D[MediaPipe hand landmarks]
-    C --> E[Game actions]
-    D --> E
-    F[Microphone] --> G[Speech recognition]
-    G --> H[Answer matching]
-    H --> I[Feedback and scoring]
-    E --> I
-    J[Fruit name] --> K[Text-to-speech]
-```
+The training label counts were nearly balanced for the mouth model (class 0: 1,527; class 1: 1,515). For the hand model, the recorded training label counts were 195, 197 and 167 for class IDs 0, 1 and 2, respectively. These are annotation counts, not necessarily image counts.
 
-The mouth detector uses the trained weights in `best.pt`. MediaPipe uses a pretrained Hand Landmarker model, followed by rule-based gesture interpretation. Spoken answers are evaluated using recognized words rather than a custom pronunciation-scoring model.
+**TODO:** Confirm that the mouth source link corresponds to the version exported in the training notebook, and provide an accessible hand dataset link if necessary.
 
-## Installation and Setup
+## Model Development
 
-### Requirements
+Pretrained YOLO26s models were fine-tuned on labeled images at 640 × 640 resolution. The mouth model was trained for 10 epochs. The experimental hand model was configured for 100 epochs with patience of 20 and stopped at epoch 97, with its best checkpoint at epoch 77. Horizontal and vertical flipping were disabled for the hand model to preserve direction labels.
 
-- Python environment compatible with Arcade 3.3.3 and the listed packages
-- Webcam and microphone
-- Internet connection for Google speech recognition
-- The required model files and game assets
+The final game uses YOLO for mouth detection, MediaPipe Hand Landmarker for hand gestures, and Google speech recognition for voice interactions. The trained YOLO hand detector was an experimental approach, not the final hand controller.
 
-Install the dependencies in your Python environment:
+## Evaluation Results
 
-```bash
-python -m pip install arcade==3.3.3 ultralytics mediapipe opencv-python numpy pillow SpeechRecognition pyttsx3 pyaudio
-```
+The following results are from the held-out test splits in the training notebooks.
 
-### Project Structure
+| Metric | Mouth YOLO | Hand YOLO (experimental) |
+|---|---:|---:|
+| Precision | 99.87% | 99.94% |
+| Recall | 99.51% | 100% |
+| mAP@50 | 99.50% | 99.50% |
+| mAP@50–95 | 77.00% | 99.10% |
 
-Keep the game script and assets in the same project directory. The following layout assumes the final script is named `Fruity_Monster_Skip_Fixed.py`.
+The mouth model detects both mouth states effectively on the test split, although its lower mAP@50–95 indicates room for improvement in bounding-box localization. These results do not establish performance for every real-world player or camera condition. MediaPipe and speech recognition were not evaluated using these YOLO metrics.
 
-```text
-Fruity-Monster/
-├── Fruity_Monster_Skip_Fixed.py
-├── README.md
-├── best.pt
-├── hand_landmarker.task
-├── purple/
-├── green/
-├── orange/
-├── pink/
-├── apple.png, banana.png, strawberry.png, ...
-├── sock.png, shoe.png, toy.png, ...
-├── heart_full.png
-├── heart_empty.png
-├── pastel_scenery.png
-├── *.wav
-└── progress.json (generated when progress is saved)
-```
+### Class-wise Test Results
 
-Each character folder contains `idle.png`, `mouth_open.png`, `walk_1.png` through `walk_4.png`, `happy.png`, `sad.png`, `win.png`, and `game_over.png`. The character folders can also be grouped under a `Characters/` directory.
+| Model | Class | Test images | Precision | Recall | mAP@50 | mAP@50–95 |
+|---|---|---:|---:|---:|---:|---:|
+| Mouth | Close | 66 | 0.997 | 1.000 | 0.995 | 0.722 |
+| Mouth | Open | 78 | 1.000 | 0.990 | 0.995 | 0.819 |
+| Hand | Left | 31 | 0.998 | 1.000 | 0.995 | 0.990 |
+| Hand | Right | 29 | 1.000 | 1.000 | 0.995 | 0.988 |
+| Hand | Up | 19 | 1.000 | 1.000 | 0.995 | 0.995 |
 
-Required fruit images: apple, banana, strawberry, orange, grapes, watermelon, mango, kiwi, pineapple, and cherries. Required non-food images: sock, shoe, toy, pencil, toothbrush, soap, and eraser. Sound files are optional; missing sounds are skipped by the game.
+### Confusion Matrices and Error Analysis
 
-### Run the Game
+**Mouth detection**
 
-From the project directory:
+![Mouth confusion matrix](screenshots/mouth_confusion_matrix.png)
 
-```bash
-python Fruity_Monster_Skip_Fixed.py
-```
+The normalized matrix shows approximately 1% of open-mouth instances classified as closed, with no observed confusion in the opposite direction. Background false positives were also present. The lower mAP@50–95 suggests that bounding-box localization can be improved.
 
-Or in JupyterLab:
+**Hand gesture detection (experimental)**
 
-```python
-%run Fruity_Monster_Skip_Fixed.py
-```
+![Hand confusion matrix](screenshots/hand_confusion_matrix.png)
 
-## How to Play
+No confusion between the three gesture classes was observed in the matrix. Background false positives were assigned to Left. These results indicate strong test-set performance, but do not imply error-free detection in every situation.
 
-| Input | Action |
-| --- | --- |
-| Point your index finger right or left | Move the monster in the corresponding direction. |
-| Point your index finger upward | Jump. |
-| Relax the gesture or move your hand out of view | Stop movement. |
-| Open your mouth near a collectible | Eat the item in Eat or Don't Eat. |
-| LISTEN | Hear the fruit name in Say the Fruit. |
-| Microphone / SPEAK | Start recording; press again to stop and recognize the answer. |
-| SKIP | Skip an unanswered question when enabled after an incorrect or unclear response. |
-| F11 | Toggle fullscreen. |
-| Esc | Go back. |
-| C / D (platformer) | Retry the camera / toggle tracking status. |
+### Baseline Comparison
 
-## Limitations
+The initial proof of concept demonstrated mouth-controlled interaction. The final game extends that concept with real-time hand tracking, three game modes and speech interaction. A separate quantitative baseline evaluation is not documented in the supplied notebooks, so no numerical improvement over a baseline is claimed.
 
-- Computer vision performance depends on lighting, camera angle, visibility, and hardware capabilities.
-- Speech recognition depends on microphone quality, background noise, internet connectivity, and how accurately the service transcribes children's speech.
-- The speech activities assess recognized vocabulary, not detailed pronunciation quality.
-- Educational benefits are intended outcomes; learning effectiveness has not been established by a formal user study in this README.
+**TODO:** Add baseline metrics if available, or confirm that no separate quantitative baseline was recorded.
 
-## Future Improvements
+## How to Run
 
-- Evaluate mouth detection and gesture recognition across diverse lighting conditions and users.
-- Conduct usability testing and measure learning outcomes.
-- Expand vocabulary and add more educational challenges.
-- Explore offline speech recognition and accessibility improvements.
+1. Download or clone the [GitHub repository](https://github.com/FatemaButaher/Fruity-Monster).
+2. Install the required Python libraries: Arcade (3.3.3), Ultralytics, MediaPipe, OpenCV, NumPy, Pillow, SpeechRecognition, pyttsx3, and PyAudio. Use a Python environment compatible with these packages.
+3. Connect a webcam and microphone. An internet connection is required for Google speech recognition.
+4. Open the `final_game` notebook in Jupyter and select **Run All**. Keep the model files and game assets in their existing locations relative to the notebook.
 
-## Project Context
+Dependency installation command (in a terminal):
 
-Developed as a Data Science capstone project, combining AI inference, human-computer interaction, and educational game development.
+`pip install arcade==3.3.3 ultralytics mediapipe opencv-python numpy pillow SpeechRecognition pyttsx3 pyaudio`
+
+## Repository Structure
+
+- `final_game.ipynb` — main game notebook (confirm extension/location).
+- `game_mouth.ipynb` — mouth model training and evaluation.
+- `game_hand.ipynb` — experimental hand model training and evaluation.
+- `best.pt` — trained mouth model weights.
+- `hand_landmarker.task` — MediaPipe hand landmark model.
+- `purple/`, `green/`, `orange/`, `pink/` — character sprites.
+- PNG and WAV files — game assets and sounds.
+
+**TODO:** Confirm paths against the final repository and upload the training notebooks after removing credentials.
+
+## Limitations and Future Work
+
+Detection may be affected by lighting, camera position, and occlusion. Speech recognition may be affected by background noise, pronunciation, and internet connectivity. Voice recognition sends audio to an external service; appropriate parental consent and privacy safeguards are important for children. Future work could include testing with diverse users, offline speech recognition, and more learning activities. Educational effectiveness has not yet been formally measured.
+
+## Demo 
+
+**TODO:** Add demo video and presentation links.
